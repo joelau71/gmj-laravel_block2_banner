@@ -1,4 +1,4 @@
-# gmj-laravelblock2banner
+# gmj-laravel_block2_banner
 
 Laravel Block for backend and frontend - need tailwindcss support
 
