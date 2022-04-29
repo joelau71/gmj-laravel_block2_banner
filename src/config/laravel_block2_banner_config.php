@@ -2,6 +2,7 @@
 
 return [
     "layouts" => [
-        "text-center"
+        "fadein",
+        "single"
     ],
 ];

@@ -13,6 +13,7 @@
         class="relative mt-7"
         method="POST"
         action="{{ route("LaravelBlock2Banner.update", ["element_id" => $element->id, "id" => $collection->id]) }}"
+        enctype="multipart/form-data"
     >
         @csrf
         @method("patch")
@@ -32,6 +33,7 @@
                 data-uic-target-width="{{ $config->img_width }}"
                 data-uic-target-height="{{ $config->img_height }}"
                 data-uic-title="Size: {{ $config->img_width }}(w) x {{ $config->img_height }}(h)"
+                data-uic-original="/storage/{{ $collection->getMedia('laravel_block2_banner_original')->first()->id }}/{{ $collection->getMedia('laravel_block2_banner_original')->first()->file_name }}"
                 data-uic-path="{{ $collection->getMedia('laravel_block2_banner')->first()->getUrl() }}"
             />
             @error("uic_base64_image")
@@ -47,34 +49,91 @@
                     Title ({{ $locale }})
                 </x-admin.atoms.label>
                 <x-admin.atoms.text
-                    name="title_{{$locale}}"
+                    name="title[{{$locale}}]"
                     id="title_{{$locale}}"
                     value="{{ $collection->getTranslation('title', $locale) }}"
                 />
             </x-admin.atoms.row>
         @endforeach
 
-        @foreach (config('translatable.locales') as $locale)
-            <x-admin.atoms.row>
-                <x-admin.atoms.label>
-                    Text ({{ $locale }})
-                </x-admin.atoms.label>
-                <x-admin.atoms.textarea name="text_{{ $locale }}" id="text_{{ $locale }}">{{ $collection->getTranslation('text', $locale) }}</x-admin.atoms.textarea>
-            </x-admin.atoms.row>
-            @error("text_{$locale}")
-                <x-admin.atoms.error>
-                    {{ $message }}
-                </x-admin.atoms.error>
-            @enderror
-        @endforeach
-
         <x-admin.atoms.row>
+            <div x-data="{isCustomLink: {{ $collection->elementLinkPage->is_custom_link }}}">
+                <div class="inline-flex items-center mr-4 mb-4">
+                
+                    <div class="relative w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="hidden" name="is_custom_link" value="0" />
+                        <input
+                            type="checkbox"
+                            id="is_custom_link"
+                            name="is_custom_link"
+                            value="1"
+                            x-on:click="
+                                isCustomLink = !isCustomLink;
+                                if(isCustomLink){$('#page_id').val('').trigger('change')};
+                                if(!isCustomLink){$('#custom_link').val('')}
+                            "
+                            {{ $collection->elementLinkPage->is_custom_link ?  'checked' : '' }}
+                            class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer focus:outline-none focus:ring-offset-0 focus:ring-transparent" />
+                        <label
+                            for="is_custom_link"
+                            class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer">
+                        </label>
+                    </div>
+                    <label for="is_custom_link" class="text-gray-700 cursor-pointer select-none">
+                        Custom Link
+                    </label>
+                </div>
 
-        <x-admin.atoms.page
-            can_null
-            link_id="{{ $collection->link()->exists() ? $collection->link->id : ''}}"
-        />
+                <div class="inline-flex items-center mr-4 mb-4">
+                    <div class="relative w-10 mr-2 align-middle select-none transition duration-200 ease-in">
+                        <input type="hidden" name="is_external" value="0" />
+                        <input
+                            type="checkbox"
+                            id="is_external"
+                            name="is_external"
+                            value="1"
+                            {{ $collection->elementLinkPage->is_external ?  'checked' : '' }}
+                            class="toggle-checkbox absolute block w-6 h-6 rounded-full bg-white border-4 appearance-none cursor-pointer focus:outline-none focus:ring-offset-0 focus:ring-transparent" />
+                        <label
+                            for="is_external"
+                            class="toggle-label block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer">
+                        </label>
+                    </div>
+                    <label for="is_external" class="text-gray-700 cursor-pointer select-none">
+                        External Link
+                    </label>
+                </div>
 
+                <div x-show="isCustomLink">            
+                    <x-admin.atoms.text
+                        type="text"
+                        name="custom_link"
+                        id="custom_link"
+                        value="{{ $collection->elementLinkPage->custom_link }}"
+                    />
+                </div>
+
+                <div x-show="!isCustomLink">
+                    <label class="inline-block mb-2 cursor-pointer">
+                        Link to Page
+                    </label>
+                    <div class="mt-2">
+                        <?php
+                            $elementLinkPageId = $collection->elementLinkPage->page_id ?? 0;
+                        ?>
+                        <select name="page_id" id="page_id" class="select2">
+                            <option value="" selected>--</option>
+                            @foreach ($pages as $item)
+                                <option value="{{ $item->id }}" @if ($item->id == $elementLinkPageId)
+                                    selected
+                                @endif>
+                                    {{ $item->title }} ({{ $item->slug}})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+            </div>
         </x-admin.atoms.row>
 
         <hr class="my-10">
@@ -89,6 +148,19 @@
                 Save
             </x-admin.atoms.button>
         </div>
-
     </form>
+    @push('css')
+        <link rel="stylesheet" href="{{ asset('css/cropper.css') }}" />
+        <link rel="stylesheet" href="{{ asset('css/uploadImageCopper.css') }}" />
+        <link rel="stylesheet" href="{{ asset("css/select2.min.css") }}">
+    @endpush
+    @push('js')
+        <script src="{{ asset('js/cropper.min.js') }}"></script>
+        <script src="{{ asset('js/uploadImageCopper.js') }}"></script>
+        <script src="{{ asset("js/jquery-3.6.0.min.js") }}"></script>
+        <script src="{{ asset("js/select2.min.js") }}"></script>
+        <script>
+            $(".select2").select2();
+        </script>
+    @endpush
 </x-admin.layout.app>

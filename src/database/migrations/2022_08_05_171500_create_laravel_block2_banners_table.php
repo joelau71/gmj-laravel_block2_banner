@@ -15,10 +15,8 @@ class CreateLaravelBlock2BannersTable extends Migration
     {
         Schema::create('laravel_block2_banners', function (Blueprint $table) {
             $table->id();
-            //$table->unsignedBigInteger("element_id");
             $table->foreignId('element_id')->constrained("elements")->onDelete('cascade');
             $table->longText('title')->nullable();
-            $table->longText('text')->nullable();
             $table->integer("display_order");
             $table->timestamps();
         });

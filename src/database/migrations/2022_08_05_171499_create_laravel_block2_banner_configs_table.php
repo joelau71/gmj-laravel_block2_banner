@@ -15,7 +15,6 @@ class CreateLaravelBlock2BannerConfigsTable extends Migration
     {
         Schema::create('laravel_block2_banner_configs', function (Blueprint $table) {
             $table->id();
-            //$table->unsignedBigInteger("element_id");
             $table->foreignId("element_id")->constrained("elements")->onDelete("cascade");
             $table->integer("img_width");
             $table->integer("img_height");

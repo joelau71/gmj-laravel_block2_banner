@@ -45,37 +45,39 @@ class LaravelBlock2BannerSeeder extends Seeder
             "element_id" => $element->id,
             "img_width" => "1920",
             "img_height" => "937",
-            "layout" => "text-center",
+            "layout" => "fadein",
         ]);
 
         for ($i = 1; $i < 4; $i++) {
             $title = [];
-            $text = [];
 
             foreach (config('translatable.locales') as $locale) {
-                $title[$locale] = $faker->name;
-                $text[$locale] = $faker->text(100);
+                $title[$locale] = $faker->word(10);
                 $link_title[$locale] = $faker->name;
             }
 
             $collection = Block::create([
                 "element_id" => $element->id,
                 "title" => $title,
-                "text" => $text,
                 "display_order" => $i
             ]);
 
-            $img = Image::make(storage_path("demo/food/{$i}.jpg"))->fit($config->img_width, $config->img_height);
-            $img->save(storage_path("demo/temp.jpg"));
-            $collection->addMedia(storage_path('demo/temp.jpg'))
+            $url = "https://source.unsplash.com/{$config->img_width}x{$config->img_height}/?beach";
+            $path = "demo/temp.jpg";
+
+            $collection->grabImageFromUnsplash($url, $path);
+
+            $collection->addMedia(storage_path($path))
+                ->preservingOriginal()
+                ->toMediaCollection("laravel_block2_banner_original");
+            $collection->addMedia(storage_path($path))
                 ->toMediaCollection("laravel_block2_banner");
 
             $page_id = Arr::random($pages);
 
-            $collection->link()->create([
+            $collection->elementLinkPage()->create([
                 "element_id" => $element->id,
                 "page_id" => $page_id,
-                "title" => $link_title,
             ]);
         }
     }

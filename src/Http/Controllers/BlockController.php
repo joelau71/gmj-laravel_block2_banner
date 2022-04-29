@@ -5,6 +5,7 @@ namespace GMJ\LaravelBlock2Banner\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Alert;
 use App\Models\Element;
+use App\Models\Page;
 use GMJ\LaravelBlock2Banner\Models\Config;
 use GMJ\LaravelBlock2Banner\Models\Block;
 
@@ -26,20 +27,21 @@ class BlockController extends Controller
     {
         $element = Element::findOrFail($element_id);
         $config = Config::where("element_id", $element_id)->first();
-        return view('LaravelBlock2Banner::create', compact("element_id", "element", "config"));
+        $pages = Page::all(["id", "title", "slug"]);
+        return view('LaravelBlock2Banner::create', compact("element_id", "element", "config", "pages"));
     }
 
     public function store($element_id)
     {
         $element = Element::findOrFail($element_id);
 
-        $rules["uic_base64_image"] = "required";
-        request()->validate($rules);
+        request()->validate([
+            "title.*" => ["max:255"],
+            "image" => ["required", "image", "mimes:jpeg,jpg,png,webp"]
+        ]);
 
         foreach (config("translatable.locales") as $locale) {
-            $text[$locale] = request()["text_{$locale}"];
             $title[$locale] = request()["title_{$locale}"];
-            $link_title[$locale] = request()["link_title_{$locale}"];
         }
 
         $display_order = Block::where("element_id", $element_id)->max("display_order");
@@ -47,20 +49,23 @@ class BlockController extends Controller
 
         $collection = Block::create([
             "element_id" => $element_id,
-            "title" => $title,
-            "text" => $text,
+            "title" => request()->title,
             "display_order" => $display_order
         ]);
 
-        $collection->addMediaFromBase64(request()->uic_base64_image, ["image/jpeg", "image/png"])->toMediaCollection('laravel_block2_banner');
+        $collection->addMediaFromRequest('image')->toMediaCollection('laravel_block2_banner_original');
 
-        if (request()->page_id) {
-            $collection->link()->create([
-                "element_id" => $element->id,
-                "page_id" => request()->page_id,
-                "title" => $link_title,
-            ]);
-        }
+        $collection->addMediaFromBase64(request()->uic_base64_image, ["image/jpeg", "image/png", "image/webp"])->toMediaCollection('laravel_block2_banner');
+
+        $collection->elementLinkPage()->delete();
+
+        $collection->elementLinkPage()->create([
+            "element_id" => $element->id,
+            "page_id" => request()->page_id,
+            "is_custom_link" => boolval(request()->is_custom_link),
+            "is_external" => boolval(request()->is_external),
+            "custom_link" => request()->custom_link
+        ]);
 
         $element->active();
 
@@ -73,38 +78,41 @@ class BlockController extends Controller
         $element = Element::findOrFail($element_id);
         $collection = Block::findOrFail($id);
         $config = Config::where("element_id", $element_id)->first();
-        return view('LaravelBlock2Banner::edit', compact("element_id", "element", "collection", "config"));
+        $pages = Page::all(["id", "title", "slug"]);
+        return view('LaravelBlock2Banner::edit', compact("element_id", "element", "collection", "config", "pages"));
     }
 
     public function update($element_id, $id)
     {
         $element = Element::findOrFail($element_id);
 
-        foreach (config("translatable.locales") as $locale) {
-            $text[$locale] = request()["text_{$locale}"];
-            $title[$locale] = request()["title_{$locale}"];
-            $link_title[$locale] = request()["link_title_{$locale}"];
-        }
+        request()->validate([
+            "title.*" => ["max:255"],
+            "image" => ["image", "mimes:jpeg,jpg,png,webp"]
+        ]);
 
         $collection = Block::findOrFail($id);
         $collection->update([
-            "title" => $title,
-            "text" => $text,
+            "title" => request()->title,
         ]);
 
+        if (request()->image) {
+            $collection->addMediaFromRequest('image')->toMediaCollection('laravel_block2_banner_original');
+        }
+
         if (request()->uic_base64_image) {
-            $collection->addMediaFromBase64(request()->uic_base64_image, ["image/jpeg", "image/png"])->toMediaCollection('laravel_block2_banner');
+            $collection->addMediaFromBase64(request()->uic_base64_image, ["image/jpeg", "image/png", "image/webp"])->toMediaCollection('laravel_block2_banner');
         }
 
-        $collection->link()->delete();
+        $collection->elementLinkPage()->delete();
 
-        if (request()->page_id) {
-            $collection->link()->create([
-                "element_id" => $element->id,
-                "page_id" => request()->page_id,
-                "title" => $link_title,
-            ]);
-        }
+        $collection->elementLinkPage()->create([
+            "element_id" => $element->id,
+            "page_id" => request()->page_id,
+            "is_custom_link" => boolval(request()->is_custom_link),
+            "is_external" => boolval(request()->is_external),
+            "custom_link" => request()->custom_link
+        ]);
 
         Alert::success("Edit Element {$element->title} Banner success");
         return redirect()->route('LaravelBlock2Banner.index', $element_id);
@@ -135,7 +143,7 @@ class BlockController extends Controller
         $element = Element::findOrFail($element_id);
 
         $collection = Block::findOrFail($id);
-        $collection->link()->delete();
+        $collection->deleteElementLinkPage();
         $collection->delete();
 
         if ($collection->count() < 1) {
